@@ -31,8 +31,10 @@ uses
 
 function TFirebirdODSHeaderReader.DecodeODSStaticHeaderMajorVersion(const AODSStaticHeader: TODSStaticHeader): Boolean;
 const
-  ODS_FIREBIRD_FLAG = $8000; // is it FB or IB
+  ODS_FIREBIRD_FLAG = $8000; // is it Firebird or InterBase
 begin
+  FODSHeaderInfo.PageSize := AODSStaticHeader.PageSize;
+
   Result := (AODSStaticHeader.EncodedODSMajorVersion and ODS_FIREBIRD_FLAG) <> 0;
   FODSHeaderInfo.IsFirebirdDatabase := Result;
 
