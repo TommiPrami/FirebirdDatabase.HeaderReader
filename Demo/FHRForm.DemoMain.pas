@@ -23,7 +23,7 @@ type
     procedure ComboBoxFirebirdVersionChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
   private
-    procedure InitDBPAth(const AFBVersion: TSupportedFBVersion);
+    procedure InitDBPath(const AFBVersion: TSupportedFBVersion);
     function ItemIndexToFirebirdVersion: TSupportedFBVersion;
     function GetODSVersionStrForFirebirdVersion(const AFBVersion: TSupportedFBVersion): string;
   end;
@@ -105,7 +105,7 @@ begin
   end;
 end;
 
-procedure TForm35.InitDBPAth(const AFBVersion: TSupportedFBVersion);
+procedure TForm35.InitDBPath(const AFBVersion: TSupportedFBVersion);
 var
   LDBPath: string;
 begin
