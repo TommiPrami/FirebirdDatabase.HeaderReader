@@ -14,6 +14,7 @@ type
     FIsFirebirdDatabase: Boolean;
     FMajorVersion: Integer;
     FMinorVersion: Integer;
+    FPageSize: Integer;
     function InternalODSVersionStr: string;
   public
     procedure Clear;
@@ -21,27 +22,30 @@ type
     function ODSVersionStr: string;
 
     property IsFirebirdDatabase: Boolean read FIsFirebirdDatabase write FIsFirebirdDatabase;
+    property PageSize: Integer read FPageSize write FPageSize;
     property MajorVersion: Integer read FMajorVersion write FMajorVersion;
     property MinorVersion: Integer read FMinorVersion write FMinorVersion;
   end;
 
   TODSStaticHeader = packed record
   public
-    (*
+    (*                        Size    Offset
+
       struct pag
       {
-        UCHAR pag_type;
-        UCHAR pag_flags;
-        USHORT pag_reserved;		// not used but anyway present because of alignment rules
-        ULONG pag_generation;
-        ULONG pag_scn;
-        ULONG pag_pageno;			// for validation
+        UCHAR pag_type;       1       0
+        UCHAR pag_flags;      1       1
+        USHORT pag_reserved;	2       2  // not used but anyway present because of alignment rules
+        ULONG pag_generation; 4       4
+        ULONG pag_scn;        4       8
+        ULONG pag_pageno;			4       12 // for validation
       };
 
+      No
     *)
-    Padding: array [0..15] of Byte; // Offset 00..17
-    PageSize: Word;                 // Offset 16..17
-    EncodedODSMajorVersion: Word;   // Offset 18..19
+    StructPag: array [0..15] of Byte; // Offset 00..17
+    PageSize: Word;                   // Offset 16..17
+    EncodedODSMajorVersion: Word;     // Offset 18..19
 
     procedure Clear;
   end;
@@ -74,8 +78,8 @@ type
   // Firebird 2.x
   TODS11VariabeHeader = packed record
     Padding2: array [1..42] of Byte; // offset 20-63 (42 bytes)
-    ODSMinorVersion: Word; // Offset 63..64
-    ODSMinorVersionOriginal : Word; // Offset 65..66
+    ODSMinorVersion: Word;           // Offset 63..64
+    ODSMinorVersionOriginal : Word;  // Offset 65..66
 
     procedure Clear;
   end;
@@ -83,7 +87,7 @@ type
   // Firebird 3.0
   TODS12VariabeHeader = packed record
     Padding2: array [1..44] of Byte; // offset 20-65 (44 bytes)
-    ODSMinorVersion: Word; // Offset 66..67
+    ODSMinorVersion: Word;           // Offset 66..67
 
     procedure Clear;
   end;
@@ -91,18 +95,17 @@ type
   // Firebird 4.0.x & 5.0.x
   TODS13VariabeHeader = packed record
     Padding2: array [1..44] of Byte; // offset 20-65 (44 bytes)
-    ODSMinorVersion: Word; // Offset 65..66
+    ODSMinorVersion: Word;           // Offset 65..66
 
     procedure Clear;
   end;
 
   // Firebird 6.0
   TODS14VariabeHeader = packed record
-    ODSMinorVersion: Word; // Offset 20..21
+    ODSMinorVersion: Word;           // Offset 20..21
 
     procedure Clear;
   end;
-
 
 implementation
 
@@ -169,6 +172,7 @@ end;
 procedure TFireBirdODSHeaderInfo.ToStrings(const AStrings: TStrings);
 begin
   AStrings.Add('ODS version = ' + InternalODSVersionStr);
+  AStrings.Add('Page size = ' + PageSize.ToString);
 end;
 
 end.
