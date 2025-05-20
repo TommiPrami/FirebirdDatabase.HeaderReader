@@ -171,7 +171,7 @@ begin
 
   if FileExists(AFirebirdDatabaseFileName) then
   begin
-    LFileStream := TFileStream.Create(AFirebirdDatabaseFileName, fmOpenRead or fmShareDenyWrite);
+    LFileStream := TFileStream.Create(AFirebirdDatabaseFileName, fmOpenRead or fmShareDenyNone);
     try
       if ReadODSStaticHeader(LFileStream, LODSStaticHeader) then
         if DecodeODSStaticHeaderMajorVersion(LODSStaticHeader) then
