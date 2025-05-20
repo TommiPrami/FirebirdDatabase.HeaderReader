@@ -19,13 +19,16 @@ type
     EditFirebirdDatabaseFilename: TEdit;
     ComboBoxFirebirdVersion: TComboBox;
     LabelDatabasePath: TLabel;
+    ButtonRunAllTests: TButton;
     procedure ButtonReadHeaderClick(Sender: TObject);
     procedure ComboBoxFirebirdVersionChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure ButtonRunAllTestsClick(Sender: TObject);
   private
     procedure InitDBPath(const AFBVersion: TSupportedFBVersion);
     function ItemIndexToFirebirdVersion: TSupportedFBVersion;
     function GetODSVersionStrForFirebirdVersion(const AFBVersion: TSupportedFBVersion): string;
+    procedure ReadSelectedHeader;
   end;
 
 var
@@ -47,31 +50,30 @@ begin
 end;
 
 procedure TForm35.ButtonReadHeaderClick(Sender: TObject);
-var
-  LHRaderReader: TFirebirdODSHeaderReader;
-  LFirebierdVersion: TSupportedFBVersion;
-  LODSVersionFromTheFile: string;
-  LExpectedFirebirdVersionStr: string;
 begin
   MemoHeaderInfo.Clear;
-  LFirebierdVersion := ItemIndexToFirebirdVersion;
-  LExpectedFirebirdVersionStr := GetODSVersionStrForFirebirdVersion(LFirebierdVersion);
 
-  LHRaderReader := TFirebirdODSHeaderReader.Create;
+  ReadSelectedHeader;
+end;
+
+procedure TForm35.ButtonRunAllTestsClick(Sender: TObject);
+begin
+  MemoHeaderInfo.Clear;
+
+  var LSelected := ComboBoxFirebirdVersion.ItemIndex;
   try
-    if LHRaderReader.ReadHeader(EditFirebirdDatabaseFilename.Text) then
+    for var LIndex := 0 to ComboBoxFirebirdVersion.ITems.Count - 1 do
     begin
-      LHRaderReader.ODSHeaderInfo.ToStrings(MemoHeaderInfo.Lines);
-      LODSVersionFromTheFile := LHRaderReader.ODSHeaderInfo.ODSVersionStr;
+      ComboBoxFirebirdVersion.ItemIndex := LIndex;
 
-      if LExpectedFirebirdVersionStr <> LODSVersionFromTheFile then
-        MemoHeaderInfo.Font.Color := clMaroon
-      else
-        MemoHeaderInfo.Font.Color := clGreen;
+      ComboBoxFirebirdVersionChange(ComboBoxFirebirdVersion);
+
+      ReadSelectedHeader;
     end;
   finally
-    LHRaderReader.Free;
+    ComboBoxFirebirdVersion.ItemIndex := LSelected;
   end;
+
 end;
 
 procedure TForm35.ComboBoxFirebirdVersionChange(Sender: TObject);
@@ -138,6 +140,34 @@ begin
     else
       RaiseUnkownOrUnsupportedFirebirdVersion;
   end;
+end;
+
+procedure TForm35.ReadSelectedHeader;
+var
+  LHRaderReader: TFirebirdODSHeaderReader;
+  LFirebierdVersion: TSupportedFBVersion;
+  LODSVersionFromTheFile: string;
+  LExpectedFirebirdVersionStr: string;
+begin
+  LFirebierdVersion := ItemIndexToFirebirdVersion;
+  LExpectedFirebirdVersionStr := GetODSVersionStrForFirebirdVersion(LFirebierdVersion);
+
+  LHRaderReader := TFirebirdODSHeaderReader.Create;
+  try
+    if LHRaderReader.ReadHeader(EditFirebirdDatabaseFilename.Text) then
+    begin
+      LHRaderReader.ODSHeaderInfo.ToStrings(MemoHeaderInfo.Lines);
+      LODSVersionFromTheFile := LHRaderReader.ODSHeaderInfo.ODSVersionStr;
+
+      if LExpectedFirebirdVersionStr <> LODSVersionFromTheFile then
+        MemoHeaderInfo.Font.Color := clMaroon
+      else
+        MemoHeaderInfo.Font.Color := clGreen;
+    end;
+  finally
+    LHRaderReader.Free;
+  end;
+
 end;
 
 end.

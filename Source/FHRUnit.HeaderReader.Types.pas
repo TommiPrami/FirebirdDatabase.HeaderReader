@@ -43,9 +43,9 @@ type
 
       No
     *)
-    StructPag: array [0..15] of Byte; // Offset 00..17
-    PageSize: Word;                   // Offset 16..17
-    EncodedODSMajorVersion: Word;     // Offset 18..19
+    StructPag: array [0..15] of Byte; // Offset 00..15 - 16 bytes
+    PageSize: Word;                   // Offset 16..17 - 2 bytes
+    EncodedODSMajorVersion: Word;     // Offset 18..19 - 2 bytes
 
     procedure Clear;
   end;
@@ -63,19 +63,7 @@ type
   end;
 *)
 
-(* Not currently supported
-  // Firebird 2.0
-  TODSVariabeHeaderV11_1 = packed record
-  end;
-*)
-
-(* Not currently supported
-  // Firebird 2.1
-  TODSVariabeHeaderV11_1 = packed record
-  end;
-*)
-
-  // Firebird 2.x
+  // Firebird 2.0.x, 2.1.x % 2.5.x - ODS 11.0, 11.1 % 11.2
   TODS11VariabeHeader = packed record
     Padding2: array [1..42] of Byte; // offset 20-63 (42 bytes)
     ODSMinorVersion: Word;           // Offset 63..64
@@ -84,7 +72,7 @@ type
     procedure Clear;
   end;
 
-  // Firebird 3.0
+  // Firebird 3.0.x - ODS 12.0
   TODS12VariabeHeader = packed record
     Padding2: array [1..44] of Byte; // offset 20-65 (44 bytes)
     ODSMinorVersion: Word;           // Offset 66..67
@@ -92,7 +80,7 @@ type
     procedure Clear;
   end;
 
-  // Firebird 4.0.x & 5.0.x
+  // Firebird 4.0.x & 5.0.x. . ODS 13.0 & 13.1
   TODS13VariabeHeader = packed record
     Padding2: array [1..44] of Byte; // offset 20-65 (44 bytes)
     ODSMinorVersion: Word;           // Offset 65..66
@@ -100,7 +88,7 @@ type
     procedure Clear;
   end;
 
-  // Firebird 6.0
+  // Firebird 6.0.x - ODS14.0
   TODS14VariabeHeader = packed record
     ODSMinorVersion: Word;           // Offset 20..21
 

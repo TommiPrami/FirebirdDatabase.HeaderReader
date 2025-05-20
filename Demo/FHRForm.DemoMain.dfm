@@ -32,6 +32,17 @@ object Form35: TForm35
       TabOrder = 0
       OnClick = ButtonReadHeaderClick
     end
+    object ButtonRunAllTests: TButton
+      AlignWithMargins = True
+      Left = 3
+      Top = 34
+      Width = 131
+      Height = 25
+      Align = alTop
+      Caption = 'Read all test DB'#39's'
+      TabOrder = 1
+      OnClick = ButtonRunAllTestsClick
+    end
   end
   object PanelClient: TPanel
     Left = 0
