@@ -31,7 +31,7 @@ begin
 
   if not Result and AParamIsMandatory then
   begin
-    Writeln('Parameter ' + ASwitchName.QuotedString('"') + ' not found or don''t have value');
+    Writeln('Parameter ' + ASwitchName.QuotedString('"') + ' not found or don''t have value.');
     ExitCode := EXIT_CODE_PARAM_NOT_FOUND;
   end;
 end;
@@ -44,7 +44,7 @@ end;
 
 procedure WriteOdsVersionText(const ADataBaseOdsVersion: string);
 begin
-  Writeln('DataBase ODS Version: ' + ADataBaseOdsVersion.QuotedString('"'));
+  Writeln('DataBase ODS Version: ' + ADataBaseOdsVersion.QuotedString('"') + '.');
 end;
 
 function GetDBOdsVersion(const ADataBaseFileName: string; var AODSVersion: string): Boolean;
@@ -71,7 +71,7 @@ begin
 
     if not FileExists(LDataBase) then
     begin
-      SetParamValueError(PARAM_DATABASE, 'DataBase does not exists');
+      SetParamValueError(PARAM_DATABASE, 'DataBase does not exists.');
       Exit;
     end;
 
@@ -91,7 +91,7 @@ begin
         if not SameText(LParamExpectedOdsVersionStr, LDataBaseOdsVersion) then
         begin
           WriteLn('  - Error: ODS versions don''t match, expected ' + LParamExpectedOdsVersionStr.QuotedString('"')
-            + ' but got ' + LDataBaseOdsVersion.QuotedString('"'));
+            + ' but got ' + LDataBaseOdsVersion.QuotedString('"') + '.');
 
           ExitCode := EXIT_CODE_ODS_DOES_NOT_MATCH;
           Exit;
