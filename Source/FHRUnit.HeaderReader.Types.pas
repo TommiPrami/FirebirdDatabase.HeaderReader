@@ -35,10 +35,10 @@ type
       {
         UCHAR pag_type;       1       0
         UCHAR pag_flags;      1       1
-        USHORT pag_reserved;	2       2  // not used but anyway present because of alignment rules
+        USHORT pag_reserved;  2       2  // not used but anyway present because of alignment rules
         ULONG pag_generation; 4       4
         ULONG pag_scn;        4       8
-        ULONG pag_pageno;			4       12 // for validation
+        ULONG pag_pageno;      4       12 // for validation
       };
 
       No
