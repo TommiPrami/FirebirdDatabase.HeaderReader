@@ -46,7 +46,7 @@ const
 
 procedure RaiseUnkownOrUnsupportedFirebirdVersion;
 begin
-  raise Exception.Create('Unnown or unsupported Firebird version');
+  raise Exception.Create('Unknown or unsupported Firebird version');
 end;
 
 procedure TForm35.ButtonReadHeaderClick(Sender: TObject);
@@ -144,20 +144,20 @@ end;
 
 procedure TForm35.ReadSelectedHeader;
 var
-  LHRaderReader: TFirebirdODSHeaderReader;
-  LFirebierdVersion: TSupportedFBVersion;
+  LHeaderReader: TFirebirdODSHeaderReader;
+  LFirebirdVersion: TSupportedFBVersion;
   LODSVersionFromTheFile: string;
   LExpectedFirebirdVersionStr: string;
 begin
-  LFirebierdVersion := ItemIndexToFirebirdVersion;
-  LExpectedFirebirdVersionStr := GetODSVersionStrForFirebirdVersion(LFirebierdVersion);
+  LFirebirdVersion := ItemIndexToFirebirdVersion;
+  LExpectedFirebirdVersionStr := GetODSVersionStrForFirebirdVersion(LFirebirdVersion);
 
-  LHRaderReader := TFirebirdODSHeaderReader.Create;
+  LHeaderReader := TFirebirdODSHeaderReader.Create;
   try
-    if LHRaderReader.ReadHeader(EditFirebirdDatabaseFilename.Text) then
+    if LHeaderReader.ReadHeader(EditFirebirdDatabaseFilename.Text) then
     begin
-      LHRaderReader.ODSHeaderInfo.ToStrings(MemoHeaderInfo.Lines);
-      LODSVersionFromTheFile := LHRaderReader.ODSHeaderInfo.ODSVersionStr;
+      LHeaderReader.ODSHeaderInfo.ToStrings(MemoHeaderInfo.Lines);
+      LODSVersionFromTheFile := LHeaderReader.ODSHeaderInfo.ODSVersionStr;
 
       if LExpectedFirebirdVersionStr <> LODSVersionFromTheFile then
         MemoHeaderInfo.Font.Color := clMaroon
@@ -165,7 +165,7 @@ begin
         MemoHeaderInfo.Font.Color := clGreen;
     end;
   finally
-    LHRaderReader.Free;
+    LHeaderReader.Free;
   end;
 
 end;
