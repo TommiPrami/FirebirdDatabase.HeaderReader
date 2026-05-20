@@ -158,7 +158,7 @@ destructor TFirebirdODSHeaderReader.Destroy;
 begin
   FODSHeaderInfo.Free;
 
-  inherited Destroy;;
+  inherited Destroy;
 end;
 
 function TFirebirdODSHeaderReader.ReadHeader(const AFirebirdDatabaseFileName: string): Boolean;
