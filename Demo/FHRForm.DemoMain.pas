@@ -10,29 +10,29 @@ type
   TSupportedFBVersion = (sfbvUnknown, sfbvFB10x, sfbvFB15x, sfbvFB20x, sfbvFB21x, sfbvFB25x, sfbvFB30x, sfbvFB40x,
     sfbvFB50x, sfbvFB60x);
 
-  TForm35 = class(TForm)
-    Panel1: TPanel;
+  TFHRDemoMainForm = class(TForm)
     ButtonReadHeader: TButton;
-    PanelClient: TPanel;
-    MemoHeaderInfo: TMemo;
-    PanelTop: TPanel;
-    EditFirebirdDatabaseFilename: TEdit;
-    ComboBoxFirebirdVersion: TComboBox;
-    LabelDatabasePath: TLabel;
     ButtonRunAllTests: TButton;
+    ComboBoxFirebirdVersion: TComboBox;
+    EditFirebirdDatabaseFilename: TEdit;
+    LabelDatabasePath: TLabel;
+    MemoHeaderInfo: TMemo;
+    PanelButtons: TPanel;
+    PanelClient: TPanel;
+    PanelTop: TPanel;
     procedure ButtonReadHeaderClick(Sender: TObject);
+    procedure ButtonRunAllTestsClick(Sender: TObject);
     procedure ComboBoxFirebirdVersionChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure ButtonRunAllTestsClick(Sender: TObject);
   private
-    procedure InitDBPath(const AFBVersion: TSupportedFBVersion);
-    function ItemIndexToFirebirdVersion: TSupportedFBVersion;
     function GetODSVersionStrForFirebirdVersion(const AFBVersion: TSupportedFBVersion): string;
+    function ItemIndexToFirebirdVersion: TSupportedFBVersion;
+    procedure InitDBPath(const AFBVersion: TSupportedFBVersion);
     procedure ReadSelectedHeader;
   end;
 
 var
-  Form35: TForm35;
+  FHRDemoMainForm: TFHRDemoMainForm;
 
 implementation
 
@@ -49,14 +49,14 @@ begin
   raise Exception.Create('Unknown or unsupported Firebird version');
 end;
 
-procedure TForm35.ButtonReadHeaderClick(Sender: TObject);
+procedure TFHRDemoMainForm.ButtonReadHeaderClick(Sender: TObject);
 begin
   MemoHeaderInfo.Clear;
 
   ReadSelectedHeader;
 end;
 
-procedure TForm35.ButtonRunAllTestsClick(Sender: TObject);
+procedure TFHRDemoMainForm.ButtonRunAllTestsClick(Sender: TObject);
 begin
   MemoHeaderInfo.Clear;
 
@@ -76,19 +76,19 @@ begin
 
 end;
 
-procedure TForm35.ComboBoxFirebirdVersionChange(Sender: TObject);
+procedure TFHRDemoMainForm.ComboBoxFirebirdVersionChange(Sender: TObject);
 begin
   InitDBPAth(ItemIndexToFirebirdVersion);
 end;
 
-procedure TForm35.FormCreate(Sender: TObject);
+procedure TFHRDemoMainForm.FormCreate(Sender: TObject);
 begin
   ComboBoxFirebirdVersion.ItemIndex := 0;
 
   ComboBoxFirebirdVersionChange(ComboBoxFirebirdVersion);
 end;
 
-function TForm35.GetODSVersionStrForFirebirdVersion(const AFBVersion: TSupportedFBVersion): string;
+function TFHRDemoMainForm.GetODSVersionStrForFirebirdVersion(const AFBVersion: TSupportedFBVersion): string;
 begin
   Result := '';
 
@@ -107,7 +107,7 @@ begin
   end;
 end;
 
-procedure TForm35.InitDBPath(const AFBVersion: TSupportedFBVersion);
+procedure TFHRDemoMainForm.InitDBPath(const AFBVersion: TSupportedFBVersion);
 var
   LDBPath: string;
 begin
@@ -127,7 +127,7 @@ begin
     raise EFileNotFoundException.Create('Database file not found', EditFirebirdDatabaseFilename.Text);
 end;
 
-function TForm35.ItemIndexToFirebirdVersion: TSupportedFBVersion;
+function TFHRDemoMainForm.ItemIndexToFirebirdVersion: TSupportedFBVersion;
 begin
   Result := sfbvUnknown;
 
@@ -142,7 +142,7 @@ begin
   end;
 end;
 
-procedure TForm35.ReadSelectedHeader;
+procedure TFHRDemoMainForm.ReadSelectedHeader;
 var
   LHeaderReader: TFirebirdODSHeaderReader;
   LFirebirdVersion: TSupportedFBVersion;

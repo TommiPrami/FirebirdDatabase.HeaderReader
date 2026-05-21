@@ -2,7 +2,7 @@
 
 uses
   Vcl.Forms,
-  FHRForm.DemoMain in 'FHRForm.DemoMain.pas' {Form35},
+  FHRForm.DemoMain in 'FHRForm.DemoMain.pas' {FHRDemoMainForm},
   FHRUnit.HeaderReader in '..\Source\FHRUnit.HeaderReader.pas',
   FHRUnit.HeaderReader.Types in '..\Source\FHRUnit.HeaderReader.Types.pas';
 
@@ -11,6 +11,6 @@ uses
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.CreateForm(TForm35, Form35);
+  Application.CreateForm(TFHRDemoMainForm, FHRDemoMainForm);
   Application.Run;
 end.

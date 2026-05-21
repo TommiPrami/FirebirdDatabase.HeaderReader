@@ -1,7 +1,7 @@
-object Form35: TForm35
+object FHRDemoMainForm: TFHRDemoMainForm
   Left = 0
   Top = 0
-  Caption = 'Form35'
+  Caption = 'Firebird Header Reader - Demo'
   ClientHeight = 441
   ClientWidth = 720
   Color = clBtnFace
@@ -12,7 +12,7 @@ object Form35: TForm35
   Font.Style = []
   OnCreate = FormCreate
   TextHeight = 15
-  object Panel1: TPanel
+  object PanelButtons: TPanel
     Left = 583
     Top = 0
     Width = 137

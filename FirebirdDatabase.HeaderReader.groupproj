@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{5CBFAF68-A571-4F5B-AF33-749C0D157B5F}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Demo\FirebirdDatabase.HeaderReader.Demo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="FireBirdOdsVersionChecker\FireBirdOdsVersionChecker.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="FirebirdDatabase_HeaderReader_Demo">
+        <MSBuild Projects="Demo\FirebirdDatabase.HeaderReader.Demo.dproj"/>
+    </Target>
+    <Target Name="FirebirdDatabase_HeaderReader_Demo:Clean">
+        <MSBuild Projects="Demo\FirebirdDatabase.HeaderReader.Demo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FirebirdDatabase_HeaderReader_Demo:Make">
+        <MSBuild Projects="Demo\FirebirdDatabase.HeaderReader.Demo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="FireBirdOdsVersionChecker">
+        <MSBuild Projects="FireBirdOdsVersionChecker\FireBirdOdsVersionChecker.dproj"/>
+    </Target>
+    <Target Name="FireBirdOdsVersionChecker:Clean">
+        <MSBuild Projects="FireBirdOdsVersionChecker\FireBirdOdsVersionChecker.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FireBirdOdsVersionChecker:Make">
+        <MSBuild Projects="FireBirdOdsVersionChecker\FireBirdOdsVersionChecker.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo;FireBirdOdsVersionChecker"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo:Clean;FireBirdOdsVersionChecker:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo:Make;FireBirdOdsVersionChecker:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
