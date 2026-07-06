@@ -81,3 +81,9 @@ __recovery/
 # Boss dependency manager vendor folder https://github.com/HashLoad/boss
 modules/
 *.dsv
+
+# TestInsight settings should not be in Repository
+TestInsightSettings.ini
+
+# DUnitx output xml-file should not be in Repository
+dunitx-results.xml
