@@ -41,11 +41,11 @@ type
   strict private
     FReader: TFirebirdODSHeaderReader;
     FCreatedFiles: TStringList;
-    function BuildHeader(const APageType: Byte; const APageSize, AEncodedOds: Word;
-      const AByteAt20, AByteAt62, AByteAt64: Byte): TBytes;
+    function BuildHeader(const APageType: Byte; const APageSize, AEncodedOds: Word; const AByteAt20, AByteAt62, 
+      AByteAt64: Byte): TBytes;
     function WriteTempFile(const ABytes: TBytes): string;
-    function WriteHeaderFile(const APageType: Byte; const APageSize, AEncodedOds: Word;
-      const AByteAt20, AByteAt62, AByteAt64: Byte): string;
+    function WriteHeaderFile(const APageType: Byte; const APageSize, AEncodedOds: Word; const AByteAt20, AByteAt62, 
+      AByteAt64: Byte): string;
   public
     [Setup]
     procedure Setup;
