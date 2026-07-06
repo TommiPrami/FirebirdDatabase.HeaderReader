@@ -54,6 +54,10 @@ type
     EncodedODSMajorVersion: Word;     // Offset 18..19 - 2 bytes
 
     procedure Clear;
+
+    function IsHeaderPage: Boolean;    // pag_type = 1 marks a database header page
+    function HasFirebirdFlag: Boolean; // set by Firebird 2.0+ (ODS 11+), absent on InterBase / Firebird 1.x
+    function ODSMajorVersion: Word;    // ODS major version, with the Firebird flag stripped off
   end;
 
 implementation
@@ -66,6 +70,27 @@ uses
 procedure TODSStaticHeader.Clear;
 begin
   FillChar(Self, SizeOf(Self), 0);
+end;
+
+function TODSStaticHeader.IsHeaderPage: Boolean;
+const
+  PAGE_TYPE_HEADER = 1; // pag_type of a database header page (StructPag offset 0)
+begin
+  Result := StructPag[0] = PAGE_TYPE_HEADER;
+end;
+
+function TODSStaticHeader.HasFirebirdFlag: Boolean;
+const
+  ODS_FIREBIRD_FLAG = $8000;
+begin
+  Result := (EncodedODSMajorVersion and ODS_FIREBIRD_FLAG) <> 0;
+end;
+
+function TODSStaticHeader.ODSMajorVersion: Word;
+const
+  ODS_MAJOR_VERSION_MASK = $7FFF;
+begin
+  Result := EncodedODSMajorVersion and ODS_MAJOR_VERSION_MASK;
 end;
 
 { TFireBirdODSHeaderInfo }

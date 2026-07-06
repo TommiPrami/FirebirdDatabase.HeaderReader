@@ -29,6 +29,20 @@ type
     procedure ToStrings_ContainsVersionAndPageSize;
   end;
 
+  // Tests for the byte-level accessors on the fixed static-header record.
+  [TestFixture]
+  TODSStaticHeaderTests = class
+  public
+    [Test]
+    procedure IsHeaderPage_IsTrue_ForPageType1;
+    [Test]
+    procedure IsHeaderPage_IsFalse_ForOtherPageType;
+    [Test]
+    procedure HasFirebirdFlag_DetectsTheHighBit;
+    [Test]
+    procedure ODSMajorVersion_StripsTheFirebirdFlag;
+  end;
+
   // Tests that drive the reader with hand-built headers, so every branch and every
   // supported / rejected version can be checked without shipping a real database.
   [TestFixture]
@@ -100,6 +114,8 @@ type
     procedure Rejects_EmptyFile;
     [Test]
     procedure Rejects_NonExistentFile;
+    [Test]
+    procedure Rejects_LockedFile_WithoutRaising;
 
     // Reusing one reader for several files must not leak state between reads.
     [Test]
@@ -234,6 +250,54 @@ begin
   finally
     LStrings.Free;
   end;
+end;
+
+{ TODSStaticHeaderTests }
+
+procedure TODSStaticHeaderTests.IsHeaderPage_IsTrue_ForPageType1;
+var
+  LHeader: TODSStaticHeader;
+begin
+  LHeader.Clear;
+  LHeader.StructPag[0] := 1;
+
+  Assert.IsTrue(LHeader.IsHeaderPage);
+end;
+
+procedure TODSStaticHeaderTests.IsHeaderPage_IsFalse_ForOtherPageType;
+var
+  LHeader: TODSStaticHeader;
+begin
+  LHeader.Clear;
+  LHeader.StructPag[0] := 7;
+
+  Assert.IsFalse(LHeader.IsHeaderPage);
+end;
+
+procedure TODSStaticHeaderTests.HasFirebirdFlag_DetectsTheHighBit;
+var
+  LHeader: TODSStaticHeader;
+begin
+  LHeader.Clear;
+
+  LHeader.EncodedODSMajorVersion := 11;
+  Assert.IsFalse(LHeader.HasFirebirdFlag, 'without flag');
+
+  LHeader.EncodedODSMajorVersion := 11 or $8000;
+  Assert.IsTrue(LHeader.HasFirebirdFlag, 'with flag');
+end;
+
+procedure TODSStaticHeaderTests.ODSMajorVersion_StripsTheFirebirdFlag;
+var
+  LHeader: TODSStaticHeader;
+begin
+  LHeader.Clear;
+
+  LHeader.EncodedODSMajorVersion := 13 or $8000; // Firebird 4 / 5
+  Assert.AreEqual(13, Integer(LHeader.ODSMajorVersion), 'with flag');
+
+  LHeader.EncodedODSMajorVersion := 10;          // Firebird 1.x, no flag
+  Assert.AreEqual(10, Integer(LHeader.ODSMajorVersion), 'without flag');
 end;
 
 { TFirebirdODSHeaderReaderSyntheticTests }
@@ -462,6 +526,23 @@ end;
 procedure TFirebirdODSHeaderReaderSyntheticTests.Rejects_NonExistentFile;
 begin
   Assert.IsFalse(FReader.ReadHeader(TPath.Combine(TPath.GetTempPath, 'no_such_database_2f8c.fdb')));
+end;
+
+procedure TFirebirdODSHeaderReaderSyntheticTests.Rejects_LockedFile_WithoutRaising;
+var
+  LFileName: string;
+  LExclusiveLock: TFileStream;
+begin
+  LFileName := WriteHeaderFile(PAGE_TYPE_HEADER, 8192, 13 or FIREBIRD_FLAG, 0, 0, 1);
+
+  // Hold the file open with exclusive access, the way a running server might, so
+  // the reader's own open is denied. ReadHeader must return False, not raise.
+  LExclusiveLock := TFileStream.Create(LFileName, fmOpenRead or fmShareExclusive);
+  try
+    Assert.IsFalse(FReader.ReadHeader(LFileName));
+  finally
+    LExclusiveLock.Free;
+  end;
 end;
 
 procedure TFirebirdODSHeaderReaderSyntheticTests.Reader_CanBeReused_WithoutLeakingState;

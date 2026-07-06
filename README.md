@@ -65,7 +65,7 @@ FireBirdOdsVersionChecker.exe -DataBase:"<filename>" [-ParamExpectedOdsVersion:"
 | 1    | The expected ODS version did not match the one read from the database.         |
 | 2    | The mandatory `DataBase` parameter was missing or empty.                       |
 | 3    | The `DataBase` file does not exist.                                            |
-| 4    | The file could not be read as a Firebird database / ODS version was not found. |
+| 4    | The file could not be read as a Firebird database - not a Firebird file, in use / locked, or the ODS version was not found. |
 | 5    | An unexpected exception occurred.                                              |
 
 ## Tests

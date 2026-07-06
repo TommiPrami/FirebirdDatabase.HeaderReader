@@ -67,40 +67,30 @@ begin
 end;
 
 function TFirebirdODSHeaderReader.DecodeODSStaticHeader(const AODSStaticHeader: TODSStaticHeader): Boolean;
-const
-  ODS_FIREBIRD_FLAG = $8000;    // set by Firebird 2.0+ (ODS 11+) to tell its ODS apart from InterBase
-  ODS_MAJOR_VERSION_MASK = $7FFF;
-  PAGE_TYPE_HEADER = 1;         // pag_type of a database header page (StructPag offset 0)
-var
-  LMajorVersion: Integer;
-  LHasFirebirdFlag: Boolean;
 begin
   Result := False;
 
-  FODSHeaderInfo.PageSize := AODSStaticHeader.PageSize;
-
   // Every database file starts with a header page whose pag_type is 1. Checking
   // it rejects files that merely happen to have plausible bytes at offset 18..19.
-  if AODSStaticHeader.StructPag[0] <> PAGE_TYPE_HEADER then
+  if not AODSStaticHeader.IsHeaderPage then
     Exit;
 
-  LHasFirebirdFlag := (AODSStaticHeader.EncodedODSMajorVersion and ODS_FIREBIRD_FLAG) <> 0;
-  LMajorVersion := AODSStaticHeader.EncodedODSMajorVersion and ODS_MAJOR_VERSION_MASK;
+  FODSHeaderInfo.PageSize := AODSStaticHeader.PageSize;
 
-  // ODS 10 (Firebird 1.0 / 1.5) predates the flag and is accepted without it -
-  // Firebird 1.x and InterBase 6 share this format and the ODS version is still
-  // correct. ODS 11+ must carry the flag; without it the file is InterBase, not
-  // Firebird, and its layout differs from the one this reader understands.
-  case LMajorVersion of
+  // ODS 10 (Firebird 1.0 / 1.5) predates the Firebird flag and is accepted without
+  // it - Firebird 1.x and InterBase 6 share this format and the ODS version is
+  // still correct. ODS 11+ must carry the flag; without it the file is InterBase,
+  // not Firebird, and its layout differs from the one this reader understands.
+  case AODSStaticHeader.ODSMajorVersion of
     10:             Result := True;
-    11, 12, 13, 14: Result := LHasFirebirdFlag;
+    11, 12, 13, 14: Result := AODSStaticHeader.HasFirebirdFlag;
   end;
 
   if not Result then
     Exit;
 
   FODSHeaderInfo.IsFirebirdDatabase := True;
-  FODSHeaderInfo.MajorVersion := LMajorVersion;
+  FODSHeaderInfo.MajorVersion := AODSStaticHeader.ODSMajorVersion;
 end;
 
 function TFirebirdODSHeaderReader.ReadODSStaticHeader(const AStream: TStream; var AODSHeader: TODSStaticHeader): Boolean;
@@ -148,13 +138,21 @@ begin
   if not FileExists(AFirebirdDatabaseFileName) then
     Exit;
 
-  LFileStream := TFileStream.Create(AFirebirdDatabaseFileName, fmOpenRead or fmShareDenyNone);
+  // A database that is in use by a running server can refuse to open (sharing
+  // violation / access denied). Treat that as "not readable" rather than letting
+  // the exception escape to the caller.
   try
-    if ReadODSStaticHeader(LFileStream, LODSStaticHeader) then
-      if DecodeODSStaticHeader(LODSStaticHeader) then
-        Result := ReadODSMinorVersion(LFileStream);
-  finally
-    LFileStream.Free;
+    LFileStream := TFileStream.Create(AFirebirdDatabaseFileName, fmOpenRead or fmShareDenyNone);
+    try
+      if ReadODSStaticHeader(LFileStream, LODSStaticHeader) then
+        if DecodeODSStaticHeader(LODSStaticHeader) then
+          Result := ReadODSMinorVersion(LFileStream);
+    finally
+      LFileStream.Free;
+    end;
+  except
+    on EStreamError do
+      FODSHeaderInfo.Clear;
   end;
 end;
 
