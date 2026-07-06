@@ -82,20 +82,15 @@ begin
 
     if GetDBOdsVersion(LDataBase, LDataBaseOdsVersion) then
     begin
-      if LParamExpectedOdsVersionStr.IsEmpty then
-        WriteOdsVersionText(LDataBaseOdsVersion)
-      else
+      WriteOdsVersionText(LDataBaseOdsVersion);
+
+      if (not LParamExpectedOdsVersionStr.IsEmpty) and (not SameText(LParamExpectedOdsVersionStr, LDataBaseOdsVersion)) then
       begin
-        WriteOdsVersionText(LDataBaseOdsVersion);
+        WriteLn('  - Error: ODS versions don''t match, expected ' + LParamExpectedOdsVersionStr.QuotedString('"')
+          + ' but got ' + LDataBaseOdsVersion.QuotedString('"') + '.');
 
-        if not SameText(LParamExpectedOdsVersionStr, LDataBaseOdsVersion) then
-        begin
-          WriteLn('  - Error: ODS versions don''t match, expected ' + LParamExpectedOdsVersionStr.QuotedString('"')
-            + ' but got ' + LDataBaseOdsVersion.QuotedString('"') + '.');
-
-          ExitCode := EXIT_CODE_ODS_DOES_NOT_MATCH;
-          Exit;
-        end;
+        ExitCode := EXIT_CODE_ODS_DOES_NOT_MATCH;
+        Exit;
       end;
     end
     else

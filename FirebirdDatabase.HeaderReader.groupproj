@@ -9,6 +9,9 @@
         <Projects Include="FireBirdOdsVersionChecker\FireBirdOdsVersionChecker.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="UnitTests\FirebirdDatabase.HeaderReader.Tests.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -35,14 +38,23 @@
     <Target Name="FireBirdOdsVersionChecker:Make">
         <MSBuild Projects="FireBirdOdsVersionChecker\FireBirdOdsVersionChecker.dproj" Targets="Make"/>
     </Target>
+    <Target Name="FirebirdDatabase_HeaderReader_Tests">
+        <MSBuild Projects="UnitTests\FirebirdDatabase.HeaderReader.Tests.dproj"/>
+    </Target>
+    <Target Name="FirebirdDatabase_HeaderReader_Tests:Clean">
+        <MSBuild Projects="UnitTests\FirebirdDatabase.HeaderReader.Tests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FirebirdDatabase_HeaderReader_Tests:Make">
+        <MSBuild Projects="UnitTests\FirebirdDatabase.HeaderReader.Tests.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo;FireBirdOdsVersionChecker"/>
+        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo;FireBirdOdsVersionChecker;FirebirdDatabase_HeaderReader_Tests"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo:Clean;FireBirdOdsVersionChecker:Clean"/>
+        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo:Clean;FireBirdOdsVersionChecker:Clean;FirebirdDatabase_HeaderReader_Tests:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo:Make;FireBirdOdsVersionChecker:Make"/>
+        <CallTarget Targets="FirebirdDatabase_HeaderReader_Demo:Make;FireBirdOdsVersionChecker:Make;FirebirdDatabase_HeaderReader_Tests:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

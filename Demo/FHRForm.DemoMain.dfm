@@ -93,7 +93,7 @@ object FHRDemoMainForm: TFHRDemoMainForm
         Height = 23
         Align = alBottom
         TabOrder = 0
-        Text = '..\..\..\UnitTests\TestData\fb25x\EMPLOYEE_Fb259.fdb'
+        Text = '..\..\..\UnitTests\TestData\fb15x\Employee_Fb1.5.6.fdb'
       end
       object ComboBoxFirebirdVersion: TComboBox
         AlignWithMargins = True
@@ -105,9 +105,11 @@ object FHRDemoMainForm: TFHRDemoMainForm
         Style = csDropDownList
         ItemIndex = 0
         TabOrder = 1
-        Text = 'Firebird 2.5.x'
+        Text = 'Firebird 1.5.x'
         OnChange = ComboBoxFirebirdVersionChange
         Items.Strings = (
+          'Firebird 1.5.x'
+          'Firebird 2.1.x'
           'Firebird 2.5.x'
           'Firebird 3.0.x'
           'Firebird 4.0.x'

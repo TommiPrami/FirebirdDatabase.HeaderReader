@@ -17,6 +17,8 @@ type
     FPageSize: Integer;
     function InternalODSVersionStr: string;
   public
+    constructor Create;
+
     procedure Clear;
     procedure ToStrings(const AStrings: TStrings);
     function ODSVersionStr: string;
@@ -27,70 +29,29 @@ type
     property MinorVersion: Integer read FMinorVersion write FMinorVersion;
   end;
 
+  // Fixed-size prefix shared by every ODS version. The stream is read into this
+  // record first, then - depending on the major version - the minor version byte
+  // is read from a version specific offset (see FHRUnit.HeaderReader).
+  //
+  // Layout of the on-disk "header_page" prefix (little-endian):
+  //
+  //   struct pag                    Size  Offset
+  //   {
+  //     UCHAR  pag_type;            1     0
+  //     UCHAR  pag_flags;           1     1
+  //     USHORT pag_reserved;        2     2   // alignment only
+  //     ULONG  pag_generation;      4     4
+  //     ULONG  pag_scn;             4     8
+  //     ULONG  pag_pageno;          4     12  // for validation
+  //   };
+  //   USHORT hdr_page_size;         2     16
+  //   USHORT hdr_ods_version;       2     18  // high bit ($8000) flags "is Firebird"
+  //
   TODSStaticHeader = packed record
   public
-    (*                        Size    Offset
-
-      struct pag
-      {
-        UCHAR pag_type;       1       0
-        UCHAR pag_flags;      1       1
-        USHORT pag_reserved;  2       2  // not used but anyway present because of alignment rules
-        ULONG pag_generation; 4       4
-        ULONG pag_scn;        4       8
-        ULONG pag_pageno;      4       12 // for validation
-      };
-
-      No
-    *)
     StructPag: array [0..15] of Byte; // Offset 00..15 - 16 bytes
     PageSize: Word;                   // Offset 16..17 - 2 bytes
     EncodedODSMajorVersion: Word;     // Offset 18..19 - 2 bytes
-
-    procedure Clear;
-  end;
-
-
-(* Not currently supported
-  // Firebird 1.0
-  TODSVariabeHeaderV10_0 = packed record
-  end;
-*)
-
-(* Not currently supported
-  // Firebird 1.5
-  TODSVariabeHeaderV10_1 = packed record
-  end;
-*)
-
-  // Firebird 2.0.x, 2.1.x % 2.5.x - ODS 11.0, 11.1 % 11.2
-  TODS11VariabeHeader = packed record
-    Padding2: array [1..42] of Byte; // offset 20-63 (42 bytes)
-    ODSMinorVersion: Word;           // Offset 63..64
-    ODSMinorVersionOriginal : Word;  // Offset 65..66
-
-    procedure Clear;
-  end;
-
-  // Firebird 3.0.x - ODS 12.0
-  TODS12VariabeHeader = packed record
-    Padding2: array [1..44] of Byte; // offset 20-65 (44 bytes)
-    ODSMinorVersion: Word;           // Offset 66..67
-
-    procedure Clear;
-  end;
-
-  // Firebird 4.0.x & 5.0.x. . ODS 13.0 & 13.1
-  TODS13VariabeHeader = packed record
-    Padding2: array [1..44] of Byte; // offset 20-65 (44 bytes)
-    ODSMinorVersion: Word;           // Offset 65..66
-
-    procedure Clear;
-  end;
-
-  // Firebird 6.0.x - ODS14.0
-  TODS14VariabeHeader = packed record
-    ODSMinorVersion: Word;           // Offset 20..21
 
     procedure Clear;
   end;
@@ -107,41 +68,21 @@ begin
   FillChar(Self, SizeOf(Self), 0);
 end;
 
-{ TODS11VariabeHeader }
-
-procedure TODS11VariabeHeader.Clear;
-begin
-  FillChar(Self, SizeOf(Self), 0);
-end;
-
-{ TODS12VariabeHeader }
-
-procedure TODS12VariabeHeader.Clear;
-begin
-  FillChar(Self, SizeOf(Self), 0);
-end;
-
-{ TODS13VariabeHeader }
-
-procedure TODS13VariabeHeader.Clear;
-begin
-  FillChar(Self, SizeOf(Self), 0);
-end;
-
-{ TODS14VariabeHeader }
-
-procedure TODS14VariabeHeader.Clear;
-begin
-  FillChar(Self, SizeOf(Self), 0);
-end;
-
 { TFireBirdODSHeaderInfo }
+
+constructor TFireBirdODSHeaderInfo.Create;
+begin
+  inherited Create;
+
+  Clear;
+end;
 
 procedure TFireBirdODSHeaderInfo.Clear;
 begin
   FIsFirebirdDatabase := False;
   FMajorVersion := UNINITIALIZED_VERSION;
   FMinorVersion := UNINITIALIZED_VERSION;
+  FPageSize := 0;
 end;
 
 function TFireBirdODSHeaderInfo.InternalODSVersionStr: string;
@@ -153,14 +94,14 @@ function TFireBirdODSHeaderInfo.ODSVersionStr: string;
 begin
   Result := '';
 
-  if FMajorVersion <> UNINITIALIZED_VERSION  then
+  if FMajorVersion <> UNINITIALIZED_VERSION then
     Result := InternalODSVersionStr;
 end;
 
 procedure TFireBirdODSHeaderInfo.ToStrings(const AStrings: TStrings);
 begin
-  AStrings.Add('ODS version = ' + InternalODSVersionStr);
-  AStrings.Add('Page size = ' + PageSize.ToString);
+  AStrings.Add('ODS version = ' + ODSVersionStr);
+  AStrings.Add('Page size = ' + FPageSize.ToString);
 end;
 
 end.
