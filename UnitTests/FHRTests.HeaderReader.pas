@@ -323,7 +323,7 @@ end;
 function TFirebirdODSHeaderReaderSyntheticTests.BuildHeader(const APageType: Byte; const APageSize, AEncodedOds: Word;
   const AByteAt20, AByteAt62, AByteAt64: Byte): TBytes;
 begin
-  SetLength(Result, HEADER_BUFFER_SIZE); // dynamic array is zero-initialised
+  SetLength(Result, HEADER_BUFFER_SIZE); // dynamic array is zero-initialized
 
   Result[0] := APageType;                         // pag_type
   Result[16] := Byte(APageSize and $FF);          // hdr_page_size (low byte)
