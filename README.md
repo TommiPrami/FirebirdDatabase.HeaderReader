@@ -1,8 +1,9 @@
 # FirebirdDatabase.HeaderReader
 
-Library to read a Firebird database header. It can read the page size and the ODS
-(On-Disk Structure) version. It is mainly used to get the ODS version *without*
-opening a database connection - it only reads the first bytes of the file.
+Library to read a Firebird database header page. It reports most of what
+`gstat -h` prints - ODS version, page size, transaction counters, page buffers,
+attributes and so on - *without* opening a database connection, by reading only the
+first bytes of the file.
 
 ## Basic usage of the class
 
@@ -20,6 +21,42 @@ begin
   end;
 end;
 ```
+
+`ReadHeader` returns `False` - it does not raise - when the file is missing, is not
+a Firebird database, or cannot be opened because a running server holds it locked.
+
+## Header information
+
+`ODSHeaderInfo` exposes the decoded header page; `ToStrings` renders it as a
+`gstat -h` style report.
+
+| Property | `gstat -h` line | Notes |
+|--------------------------|------------------------|--------------------------------------|
+| `PageFlags`              | Flags                  | `pag_flags`, not `hdr_flags`         |
+| `Generation`             | Generation             |                                      |
+| `SystemChangeNumber`     | System Change Number   |                                      |
+| `PageSize`               | Page size              |                                      |
+| `MajorVersion`/`MinorVersion`/`ODSVersionStr` | ODS version |                        |
+| `OldestTransaction`      | Oldest transaction     |                                      |
+| `OldestActive`           | Oldest active          |                                      |
+| `OldestSnapshot`         | Oldest snapshot        |                                      |
+| `NextTransaction`        | Next transaction       |                                      |
+| `SequenceNumber`         | Sequence number        | not in ODS 14                        |
+| `NextAttachmentID`       | Next attachment ID     |                                      |
+| `ShadowCount`            | Shadow count           |                                      |
+| `PageBuffers`            | Page buffers           |                                      |
+| `NextHeaderPage`         | Next header page       | not in ODS 14                        |
+| `Dialect`                | Database dialect       |                                      |
+| `CreationDate`           | Creation date          | `TDateTime`                          |
+| `Attributes`/`AttributesStr` | Attributes         | force write, read only, shutdown, .. |
+
+Transaction counters and the attachment id are 64 bit: ODS 12/13 store the high
+words separately and they are combined here, ODS 14 stores them as native 64 bit
+values.
+
+Fields a given ODS generation does not have report `VALUE_NOT_AVAILABLE` (`-1`), and
+`ToStrings` prints them as `n/a`. The Database GUID and sweep interval live in the
+variable part of the header page and are not parsed (yet).
 
 ## Supported versions
 
