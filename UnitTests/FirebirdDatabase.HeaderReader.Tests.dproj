@@ -4,7 +4,7 @@
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release - TestInsight</Config>
+        <Config Condition="'$(Config)'==''">Debug - TestInsight</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Console</AppType>
@@ -94,7 +94,6 @@
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_3_Win32)'!=''">
-        <DCC_Define>TESTINSIGHT;$(DCC_Define)</DCC_Define>
         <Manifest_File>(None)</Manifest_File>
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
     </PropertyGroup>
@@ -109,6 +108,8 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="FHRTests.HeaderReader.pas"/>
+        <DCCReference Include="FHRTests.FirebirdTools.pas"/>
+        <DCCReference Include="FHRTests.GStatDifferential.pas"/>
         <DCCReference Include="..\Source\FHRUnit.HeaderReader.pas"/>
         <DCCReference Include="..\Source\FHRUnit.HeaderReader.Types.pas"/>
         <BuildConfiguration Include="Base">
