@@ -166,21 +166,27 @@ type
     procedure TearDown;
 
     [Test]
+    [TestCase('Firebird 1.0.x', 'fb10x\Employee_Fb1.0.3.gdb,10.0,10,0,4096')]
     [TestCase('Firebird 1.5.x', 'fb15x\Employee_Fb1.5.6.fdb,10.1,10,1,4096')]
     [TestCase('Firebird 2.1.x', 'fb21x\Employee_Fb2.1.7.fdb,11.1,11,1,4096')]
     [TestCase('Firebird 2.5.x', 'fb25x\Employee_Fb2.5.9.fdb,11.2,11,2,4096')]
-    [TestCase('Firebird 3.0.x', 'fb30x\Employee_Fb3.0.12.fdb,12.0,12,0,8192')]
-    [TestCase('Firebird 4.0.x', 'fb40x\Employee_Fb4.0.5.fdb,13.0,13,0,8192')]
-    [TestCase('Firebird 5.0.x', 'fb50x\Employee_Fb5.0.2.fdb,13.1,13,1,8192')]
+    [TestCase('Firebird 3.0.x', 'fb30x\Employee_Fb3.0.14.fdb,12.0,12,0,8192')]
+    [TestCase('Firebird 4.0.x', 'fb40x\Employee_Fb4.0.7.fdb,13.0,13,0,8192')]
+    [TestCase('Firebird 5.0.x', 'fb50x\Employee_Fb5.0.4.fdb,13.1,13,1,8192')]
     [TestCase('Firebird 6.0.x', 'fb60x\Employee_Fb6.x.x.fdb,14.0,14,0,8192')]
     procedure Reads_ExpectedValues_FromRealDatabase(const ARelativePath, AExpectedOdsVersion: string;
       const AExpectedMajor, AExpectedMinor, AExpectedPageSize: Integer);
 
+    // Firebird 1.0's sample is the only dialect 1 database, which exercises the ODS
+    // 10/11 dialect flag ($100) being absent instead of set.
+    [Test]
+    procedure Reads_Dialect1_FromFirebird10Database;
+
     // Expected values below were taken from real "gstat -h" output (Firebird 5.0's
     // gstat only reads ODS 13, which is why just these two are covered here).
     [Test]
-    [TestCase('Firebird 4.0.x', 'fb40x\Employee_Fb4.0.5.fdb,170,157,158,158,158,7,0,3')]
-    [TestCase('Firebird 5.0.x', 'fb50x\Employee_Fb5.0.2.fdb,170,157,158,158,158,7,0,3')]
+    [TestCase('Firebird 4.0.x', 'fb40x\Employee_Fb4.0.7.fdb,170,157,158,158,158,7,0,3')]
+    [TestCase('Firebird 5.0.x', 'fb50x\Employee_Fb5.0.4.fdb,170,157,158,158,158,7,0,3')]
     procedure Reads_SameValuesAsGstat(const ARelativePath: string; const AGeneration, AOldestTransaction,
       AOldestActive, AOldestSnapshot, ANextTransaction, ANextAttachmentID, APageBuffers, ADialect: Integer);
   end;
@@ -757,6 +763,25 @@ begin
   Assert.AreEqual(AExpectedMajor, FReader.ODSHeaderInfo.MajorVersion, 'MajorVersion');
   Assert.AreEqual(AExpectedMinor, FReader.ODSHeaderInfo.MinorVersion, 'MinorVersion');
   Assert.AreEqual(AExpectedPageSize, FReader.ODSHeaderInfo.PageSize, 'PageSize');
+end;
+
+procedure TFirebirdODSHeaderReaderRealFileTests.Reads_Dialect1_FromFirebird10Database;
+var
+  LFileName: string;
+begin
+  if FTestDataDir.IsEmpty then
+    Assert.Pass('TestData folder not found - real database tests skipped.');
+
+  LFileName := TPath.Combine(FTestDataDir, 'fb10x\Employee_Fb1.0.3.gdb');
+
+  if not TFile.Exists(LFileName) then
+    Assert.Pass('Sample database not present (Git LFS not pulled?): fb10x\Employee_Fb1.0.3.gdb');
+
+  Assert.IsTrue(FReader.ReadHeader(LFileName), 'ReadHeader');
+
+  // "gstat -h" of Firebird 1.0.3 reports dialect 1 and "force write" for this file.
+  Assert.AreEqual(1, FReader.ODSHeaderInfo.Dialect, 'Database dialect');
+  Assert.AreEqual('force write', FReader.ODSHeaderInfo.AttributesStr, 'Attributes');
 end;
 
 procedure TFirebirdODSHeaderReaderRealFileTests.Reads_SameValuesAsGstat(const ARelativePath: string;

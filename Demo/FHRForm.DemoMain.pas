@@ -112,12 +112,13 @@ var
   LDBPath: string;
 begin
   case AFBVersion of
+    sfbvFB10x: LDBPath := 'fb10x\Employee_Fb1.0.3.gdb';
     sfbvFB15x: LDBPath := 'fb15x\Employee_Fb1.5.6.fdb';
     sfbvFB21x: LDBPath := 'fb21x\Employee_Fb2.1.7.fdb';
     sfbvFB25x: LDBPath := 'fb25x\Employee_Fb2.5.9.fdb';
-    sfbvFB30x: LDBPath := 'fb30x\Employee_Fb3.0.12.fdb';
-    sfbvFB40x: LDBPath := 'fb40x\Employee_Fb4.0.5.fdb';
-    sfbvFB50x: LDBPath := 'fb50x\Employee_Fb5.0.2.fdb';
+    sfbvFB30x: LDBPath := 'fb30x\Employee_Fb3.0.14.fdb';
+    sfbvFB40x: LDBPath := 'fb40x\Employee_Fb4.0.7.fdb';
+    sfbvFB50x: LDBPath := 'fb50x\Employee_Fb5.0.4.fdb';
     sfbvFB60x: LDBPath := 'fb60x\Employee_Fb6.x.x.fdb';
     else
       RaiseUnkownOrUnsupportedFirebirdVersion;
@@ -134,13 +135,14 @@ begin
   Result := sfbvUnknown;
 
   case ComboBoxFirebirdVersion.ItemIndex of
-    0: Result := sfbvFB15x;
-    1: Result := sfbvFB21x;
-    2: Result := sfbvFB25x;
-    3: Result := sfbvFB30x;
-    4: Result := sfbvFB40x;
-    5: Result := sfbvFB50x;
-    6: Result := sfbvFB60x;
+    0: Result := sfbvFB10x;
+    1: Result := sfbvFB15x;
+    2: Result := sfbvFB21x;
+    3: Result := sfbvFB25x;
+    4: Result := sfbvFB30x;
+    5: Result := sfbvFB40x;
+    6: Result := sfbvFB50x;
+    7: Result := sfbvFB60x;
     else
       RaiseUnkownOrUnsupportedFirebirdVersion;
   end;

@@ -34,6 +34,10 @@ type
     // Every combination of the header switches gfix can flip, per version.
     // Parameters: version, -write, -use, -mode.
     [Test]
+    [TestCase('FB1.0 sync/full/rw',    'Firebird 1.0.x,sync,full,read_write')]
+    [TestCase('FB1.0 async/reserve/ro','Firebird 1.0.x,async,reserve,read_only')]
+    [TestCase('FB1.0 sync/reserve/rw', 'Firebird 1.0.x,sync,reserve,read_write')]
+    [TestCase('FB1.0 async/full/ro',   'Firebird 1.0.x,async,full,read_only')]
     [TestCase('FB1.5 sync/full/rw',    'Firebird 1.5.x,sync,full,read_write')]
     [TestCase('FB1.5 async/reserve/ro','Firebird 1.5.x,async,reserve,read_only')]
     [TestCase('FB1.5 sync/reserve/rw', 'Firebird 1.5.x,sync,reserve,read_write')]
@@ -188,12 +192,9 @@ begin
   LConnection := LDistribution.ConnectionString(LDatabaseFileName);
 
   // read_only has to go last - a read only database will not accept further changes.
-  LDistribution.RunToolChecked(ftkGFix, ['-user', 'SYSDBA', '-password', 'masterkey',
-    '-write', AWriteMode, LConnection]);
-  LDistribution.RunToolChecked(ftkGFix, ['-user', 'SYSDBA', '-password', 'masterkey',
-    '-use', AUseMode, LConnection]);
-  LDistribution.RunToolChecked(ftkGFix, ['-user', 'SYSDBA', '-password', 'masterkey',
-    '-mode', AAccessMode, LConnection]);
+  LDistribution.RunToolChecked(ftkGFix, LDistribution.CredentialParameters + ['-write', AWriteMode, LConnection]);
+  LDistribution.RunToolChecked(ftkGFix, LDistribution.CredentialParameters + ['-use', AUseMode, LConnection]);
+  LDistribution.RunToolChecked(ftkGFix, LDistribution.CredentialParameters + ['-mode', AAccessMode, LConnection]);
 
   CompareAgainstGStat(LDistribution, LDatabaseFileName, AVersionCaption + ' ' + LTag);
 
@@ -221,8 +222,8 @@ begin
 
   LDatabaseFileName := LDistribution.PrepareDatabase('buffers' + APageBuffers.ToString);
 
-  LDistribution.RunToolChecked(ftkGFix, ['-user', 'SYSDBA', '-password', 'masterkey',
-    '-buffers', APageBuffers.ToString, LDistribution.ConnectionString(LDatabaseFileName)]);
+  LDistribution.RunToolChecked(ftkGFix, LDistribution.CredentialParameters +
+    ['-buffers', APageBuffers.ToString, LDistribution.ConnectionString(LDatabaseFileName)]);
 
   CompareAgainstGStat(LDistribution, LDatabaseFileName,
     AVersionCaption + ' buffers=' + APageBuffers.ToString);
@@ -251,11 +252,12 @@ begin
   if TFile.Exists(LRestoredFileName) then
     TFile.Delete(LRestoredFileName);
 
-  LDistribution.RunToolChecked(ftkGBak, ['-b', '-user', 'SYSDBA', '-password', 'masterkey',
-    LDistribution.ConnectionString(LSourceFileName), LBackupFileName]);
+  LDistribution.RunToolChecked(ftkGBak, LDistribution.CredentialParameters +
+    ['-b', LDistribution.ConnectionString(LSourceFileName), LBackupFileName]);
 
-  LDistribution.RunToolChecked(ftkGBak, ['-c', '-user', 'SYSDBA', '-password', 'masterkey',
-    '-page_size', APageSize.ToString, LBackupFileName, LDistribution.ConnectionString(LRestoredFileName)]);
+  LDistribution.RunToolChecked(ftkGBak, LDistribution.CredentialParameters +
+    ['-c', '-page_size', APageSize.ToString, LBackupFileName,
+     LDistribution.ConnectionString(LRestoredFileName)]);
 
   CompareAgainstGStat(LDistribution, LRestoredFileName, AVersionCaption + ' page_size=' + APageSize.ToString);
 

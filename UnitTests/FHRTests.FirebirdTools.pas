@@ -30,6 +30,15 @@ type
     ToolSubDir: string;       // where the exes live inside that folder ('' or 'bin')
     TestDataRelPath: string;
     NeedsServer: Boolean;     // True below Firebird 3.0 - no embedded engine
+    ServerExeName: string;    // Firebird 1.0 still called it ibserver.exe
+    // Firebird 1.0 finds interbase.msg through the INTERBASE variable and otherwise
+    // looks for a Borland install that is not there. Empty for the later versions,
+    // which locate their home from the executable.
+    HomeEnvironmentVariable: string;
+    // Firebird 1.0's option parser matches prefixes, so "-user" collides with "-use"
+    // and the whole command is rejected as an incompatible switch combination. Its
+    // credentials have to travel in ISC_USER / ISC_PASSWORD instead.
+    UsesEnvironmentCredentials: Boolean;
     ODSMajor: Integer;
     ODSMinor: Integer;
   end;
@@ -70,6 +79,8 @@ type
     FServerHandle: THandle;
     FServerPort: Integer;
     function ToolFileName(const AKind: TFirebirdToolKind): string;
+    function ToolDirectory: string;
+    procedure ApplyEnvironment;
     procedure StartServer;
     procedure StopServer;
   public
@@ -79,6 +90,9 @@ type
     // Path as gfix / gbak must be given it - plain path when embedded, localhost
     // syntax when the version needs a server.
     function ConnectionString(const ADatabaseFileName: string): string;
+    // "-user SYSDBA -password masterkey", or nothing when this version wants the
+    // credentials in the environment instead.
+    function CredentialParameters: TArray<string>;
     function RunTool(const AKind: TFirebirdToolKind; const AParameters: array of string;
       out AOutput: string): Integer;
     procedure RunToolChecked(const AKind: TFirebirdToolKind; const AParameters: array of string);
@@ -134,26 +148,35 @@ const
 function AllFirebirdVersions: TArray<TFirebirdVersionInfo>;
 
   function Make(const ACaption, ADistributionDir, AToolSubDir, ATestDataRelPath: string;
-    const ANeedsServer: Boolean; const AODSMajor, AODSMinor: Integer): TFirebirdVersionInfo;
+    const AServerExeName, AHomeEnvironmentVariable: string; const AUsesEnvironmentCredentials: Boolean;
+    const AODSMajor, AODSMinor: Integer): TFirebirdVersionInfo;
   begin
     Result.Caption := ACaption;
     Result.DistributionDir := ADistributionDir;
     Result.ToolSubDir := AToolSubDir;
     Result.TestDataRelPath := ATestDataRelPath;
-    Result.NeedsServer := ANeedsServer;
+    Result.NeedsServer := not AServerExeName.IsEmpty;
+    Result.ServerExeName := AServerExeName;
+    Result.HomeEnvironmentVariable := AHomeEnvironmentVariable;
+    Result.UsesEnvironmentCredentials := AUsesEnvironmentCredentials;
     Result.ODSMajor := AODSMajor;
     Result.ODSMinor := AODSMinor;
   end;
 
 begin
   Result := [
-    Make('Firebird 1.5.x', '1.5.6.5026', 'bin', 'fb15x\Employee_Fb1.5.6.fdb', True, 10, 1),
-    Make('Firebird 2.1.x', '2.1.7.18553', 'bin', 'fb21x\Employee_Fb2.1.7.fdb', True, 11, 1),
-    Make('Firebird 2.5.x', '2.5.9.27139', 'Bin', 'fb25x\Employee_Fb2.5.9.fdb', True, 11, 2),
-    Make('Firebird 3.0.x', '3.0.14.33856', '', 'fb30x\Employee_Fb3.0.12.fdb', False, 12, 0),
-    Make('Firebird 4.0.x', '4.0.7.3271', '', 'fb40x\Employee_Fb4.0.5.fdb', False, 13, 0),
-    Make('Firebird 5.0.x', '5.0.4.1812', '', 'fb50x\Employee_Fb5.0.2.fdb', False, 13, 1),
-    Make('Firebird 6.0.x', '6.0.0.2076', '', 'fb60x\Employee_Fb6.x.x.fdb', False, 14, 0)
+    Make('Firebird 1.0.x', '1.0.3.972', 'bin', 'fb10x\Employee_Fb1.0.3.gdb',
+      'ibserver.exe', 'INTERBASE', True, 10, 0),
+    Make('Firebird 1.5.x', '1.5.6.5026', 'bin', 'fb15x\Employee_Fb1.5.6.fdb',
+      'fbserver.exe', '', False, 10, 1),
+    Make('Firebird 2.1.x', '2.1.7.18553', 'bin', 'fb21x\Employee_Fb2.1.7.fdb',
+      'fbserver.exe', '', False, 11, 1),
+    Make('Firebird 2.5.x', '2.5.9.27139', 'Bin', 'fb25x\Employee_Fb2.5.9.fdb',
+      'fbserver.exe', '', False, 11, 2),
+    Make('Firebird 3.0.x', '3.0.14.33856', '', 'fb30x\Employee_Fb3.0.14.fdb', '', '', False, 12, 0),
+    Make('Firebird 4.0.x', '4.0.7.3271', '', 'fb40x\Employee_Fb4.0.7.fdb', '', '', False, 13, 0),
+    Make('Firebird 5.0.x', '5.0.4.1812', '', 'fb50x\Employee_Fb5.0.4.fdb', '', '', False, 13, 1),
+    Make('Firebird 6.0.x', '6.0.0.2076', '', 'fb60x\Employee_Fb6.x.x.fdb', '', '', False, 14, 0)
   ];
 end;
 
@@ -301,18 +324,46 @@ begin
   inherited Destroy;
 end;
 
+function TFirebirdDistribution.ToolDirectory: string;
+begin
+  Result := FRootDir;
+
+  if not FInfo.ToolSubDir.IsEmpty then
+    Result := TPath.Combine(Result, FInfo.ToolSubDir);
+end;
+
 function TFirebirdDistribution.ToolFileName(const AKind: TFirebirdToolKind): string;
 const
   TOOL_EXE_NAMES: array [TFirebirdToolKind] of string = ('gstat.exe', 'gfix.exe', 'gbak.exe', 'isql.exe');
-var
-  LDir: string;
 begin
-  LDir := FRootDir;
+  Result := TPath.Combine(ToolDirectory, TOOL_EXE_NAMES[AKind]);
+end;
 
-  if not FInfo.ToolSubDir.IsEmpty then
-    LDir := TPath.Combine(LDir, FInfo.ToolSubDir);
+// Child processes inherit the environment, so this is set right before each tool runs.
+// Several distributions are alive at once and they disagree about these variables.
+procedure TFirebirdDistribution.ApplyEnvironment;
+begin
+  if not FInfo.HomeEnvironmentVariable.IsEmpty then
+    SetEnvironmentVariable(PChar(FInfo.HomeEnvironmentVariable), PChar(FRootDir));
 
-  Result := TPath.Combine(LDir, TOOL_EXE_NAMES[AKind]);
+  if FInfo.UsesEnvironmentCredentials then
+  begin
+    SetEnvironmentVariable('ISC_USER', 'SYSDBA');
+    SetEnvironmentVariable('ISC_PASSWORD', 'masterkey');
+  end
+  else
+  begin
+    SetEnvironmentVariable('ISC_USER', nil);
+    SetEnvironmentVariable('ISC_PASSWORD', nil);
+  end;
+end;
+
+function TFirebirdDistribution.CredentialParameters: TArray<string>;
+begin
+  if FInfo.UsesEnvironmentCredentials then
+    Result := []
+  else
+    Result := ['-user', 'SYSDBA', '-password', 'masterkey'];
 end;
 
 procedure TFirebirdDistribution.StartServer;
@@ -325,14 +376,17 @@ var
   LWaited: Integer;
   LOutput: string;
 begin
-  LDir := TPath.Combine(FRootDir, FInfo.ToolSubDir);
-  LServerExe := TPath.Combine(LDir, 'fbserver.exe');
+  LDir := ToolDirectory;
+  LServerExe := TPath.Combine(LDir, FInfo.ServerExeName);
 
   if not TFile.Exists(LServerExe) then
     raise EFirebirdToolError.Create('Server not found for ' + FInfo.Caption + ': ' + LServerExe);
 
-  // A private port keeps this away from any Firebird the machine already runs.
-  FServerPort := SERVER_START_PORT + Ord(FInfo.ODSMajor) + FInfo.ODSMinor;
+  ApplyEnvironment;
+
+  // A private port keeps this away from any Firebird the machine already runs, and
+  // apart from the other versions started by this same test run.
+  FServerPort := SERVER_START_PORT + FInfo.ODSMajor * 4 + FInfo.ODSMinor;
 
   FillChar(LStartupInfo, SizeOf(LStartupInfo), 0);
   LStartupInfo.cb := SizeOf(LStartupInfo);
@@ -355,7 +409,7 @@ begin
     Sleep(250);
     Inc(LWaited, 250);
 
-    if RunTool(ftkGFix, ['-user', 'SYSDBA', '-password', 'masterkey', '-h',
+    if RunTool(ftkGFix, CredentialParameters + ['-h',
       'localhost/' + FServerPort.ToString + ':nonexistent_probe.fdb'], LOutput) <> 0 then
       // Any answer that is not a connection failure means the server is listening.
       if not ContainsText(LOutput, 'Unable to complete network request') then
@@ -387,7 +441,6 @@ function TFirebirdDistribution.RunTool(const AKind: TFirebirdToolKind; const APa
 var
   LCommandLine: string;
   LParameter: string;
-  LDir: string;
 begin
   LCommandLine := '';
 
@@ -402,11 +455,9 @@ begin
       LCommandLine := LCommandLine + LParameter;
   end;
 
-  LDir := FRootDir;
-  if not FInfo.ToolSubDir.IsEmpty then
-    LDir := TPath.Combine(LDir, FInfo.ToolSubDir);
+  ApplyEnvironment;
 
-  Result := RunProcessCaptured(ToolFileName(AKind), LCommandLine, LDir, TOOL_TIMEOUT_MS, AOutput);
+  Result := RunProcessCaptured(ToolFileName(AKind), LCommandLine, ToolDirectory, TOOL_TIMEOUT_MS, AOutput);
 end;
 
 procedure TFirebirdDistribution.RunToolChecked(const AKind: TFirebirdToolKind; const AParameters: array of string);
@@ -522,6 +573,7 @@ begin
   LScript := 'CREATE DATABASE ' + QuotedStr(ConnectionString(ADatabaseFileName)) +
     ' PAGE_SIZE ' + APageSize.ToString + ' USER ' + QuotedStr('SYSDBA') +
     ' PASSWORD ' + QuotedStr('masterkey') + ';' + sLineBreak + 'QUIT;' + sLineBreak;
+  // The credentials are in the script itself, so isql needs no switches for them.
 
   TFile.WriteAllText(LScriptFileName, LScript, TEncoding.ANSI);
   try
