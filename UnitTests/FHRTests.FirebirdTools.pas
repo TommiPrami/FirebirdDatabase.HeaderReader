@@ -112,9 +112,12 @@ type
     FInstance: TFirebirdTestEnvironment;
   strict private
     FDistributions: TObjectDictionary<string, TFirebirdDistribution>;
+    FJobHandle: THandle;
     FUnitTestsDir: string;
     FWorkDir: string;
     function ExtractDistribution(const AInfo: TFirebirdVersionInfo): string;
+    procedure CreateKillOnCloseJob;
+    procedure RemoveStaleWorkDirectories;
   public
     class function Instance: TFirebirdTestEnvironment;
     class procedure ReleaseInstance;
@@ -128,6 +131,11 @@ type
     // Fresh, writable copy of the pristine sample database.
     function CopyTestDatabase(const AInfo: TFirebirdVersionInfo; const ATag: string): string;
 
+    // Every server started here joins this job, which is set to kill its members as
+    // soon as the last handle to it goes away. Stopping the runner in the debugger,
+    // a crash, or TestInsight killing the process all close that handle, so the
+    // servers cannot outlive the test run even when nothing gets to finalize.
+    property JobHandle: THandle read FJobHandle;
     property UnitTestsDir: string read FUnitTestsDir;
     property WorkDir: string read FWorkDir;
   end;
@@ -144,6 +152,7 @@ const
   SERVER_START_PORT = 3055;
   SERVER_START_TIMEOUT_MS = 8000;
   TOOL_TIMEOUT_MS = 120000;
+  WORK_DIR_PREFIX = 'FHRTests_';
 
 function AllFirebirdVersions: TArray<TFirebirdVersionInfo>;
 
@@ -402,6 +411,11 @@ begin
   CloseHandle(LProcessInfo.hThread);
   FServerHandle := LProcessInfo.hProcess;
 
+  // Tie it to the job before anything else can go wrong, so that even a killed or
+  // debugger-stopped test run cannot leave this server behind.
+  if TFirebirdTestEnvironment.Instance.JobHandle <> 0 then
+    AssignProcessToJobObject(TFirebirdTestEnvironment.Instance.JobHandle, FServerHandle);
+
   // Wait until it actually answers, rather than guessing with a fixed sleep.
   LWaited := 0;
   while LWaited < SERVER_START_TIMEOUT_MS do
@@ -415,6 +429,11 @@ begin
       if not ContainsText(LOutput, 'Unable to complete network request') then
         Exit;
   end;
+
+  // Never returning quietly here matters: a server that is not listening turns into
+  // a pile of confusing "Unable to complete network request" failures further on.
+  raise EFirebirdToolError.CreateFmt('%s server did not start listening on port %d within %d ms. Last answer: %s',
+    [FInfo.Caption, FServerPort, SERVER_START_TIMEOUT_MS, LOutput.Trim]);
 end;
 
 procedure TFirebirdDistribution.StopServer;
@@ -646,13 +665,63 @@ begin
   FDistributions := TObjectDictionary<string, TFirebirdDistribution>.Create([doOwnsValues]);
   FUnitTestsDir := FindUnitTestsDir;
 
-  FWorkDir := TPath.Combine(TPath.GetTempPath, 'FHRTests_' + GetCurrentProcessId.ToString);
+  CreateKillOnCloseJob;
+  RemoveStaleWorkDirectories;
+
+  FWorkDir := TPath.Combine(TPath.GetTempPath, WORK_DIR_PREFIX + GetCurrentProcessId.ToString);
+
+  // A recycled process id could leave us an old folder full of the wrong binaries.
+  if TDirectory.Exists(FWorkDir) then
+    TDirectory.Delete(FWorkDir, True);
+
   TDirectory.CreateDirectory(FWorkDir);
+end;
+
+// The job object takes care of the server processes when a run is killed, but the
+// work folder it was using is left behind - and it holds whole Firebird
+// distributions. Clear out the ones whose test run is long gone.
+procedure TFirebirdTestEnvironment.RemoveStaleWorkDirectories;
+var
+  LDir: string;
+  LProcessId: Integer;
+  LProcessHandle: THandle;
+  LOwnerStillRunning: Boolean;
+begin
+  for LDir in TDirectory.GetDirectories(TPath.GetTempPath, WORK_DIR_PREFIX + '*') do
+  begin
+    if not TryStrToInt(TPath.GetFileName(LDir).Substring(Length(WORK_DIR_PREFIX)), LProcessId) then
+      Continue;
+
+    if LProcessId = Integer(GetCurrentProcessId) then
+      Continue;
+
+    LProcessHandle := OpenProcess(SYNCHRONIZE, False, LProcessId);
+    LOwnerStillRunning := LProcessHandle <> 0;
+
+    if LOwnerStillRunning then
+    begin
+      CloseHandle(LProcessHandle);
+      Continue; // Another test run is using it.
+    end;
+
+    try
+      TDirectory.Delete(LDir, True);
+    except
+      // Locked or not ours - tidying up must never fail a test run.
+    end;
+  end;
 end;
 
 destructor TFirebirdTestEnvironment.Destroy;
 begin
-  FDistributions.Free; // stops any servers
+  FDistributions.Free; // stops the servers the tidy way
+
+  // ...and this takes down anything that somehow survived.
+  if FJobHandle <> 0 then
+  begin
+    CloseHandle(FJobHandle);
+    FJobHandle := 0;
+  end;
 
   try
     if TDirectory.Exists(FWorkDir) then
@@ -662,6 +731,29 @@ begin
   end;
 
   inherited Destroy;
+end;
+
+procedure TFirebirdTestEnvironment.CreateKillOnCloseJob;
+var
+  LSecurityAttributes: TSecurityAttributes;
+  LLimits: TJobObjectExtendedLimitInformation;
+begin
+  FillChar(LSecurityAttributes, SizeOf(LSecurityAttributes), 0);
+  LSecurityAttributes.nLength := SizeOf(LSecurityAttributes);
+
+  FJobHandle := CreateJobObject(LSecurityAttributes, nil);
+
+  if FJobHandle = 0 then
+    Exit; // No job available - StopServer still does the tidy shutdown.
+
+  FillChar(LLimits, SizeOf(LLimits), 0);
+  LLimits.BasicLimitInformation.LimitFlags := JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+  if not SetInformationJobObject(FJobHandle, JobObjectExtendedLimitInformation, @LLimits, SizeOf(LLimits)) then
+  begin
+    CloseHandle(FJobHandle);
+    FJobHandle := 0;
+  end;
 end;
 
 function TFirebirdTestEnvironment.IsAvailable: Boolean;
