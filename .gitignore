@@ -82,6 +82,16 @@ __recovery/
 modules/
 *.dsv
 
+# The Firebird utilities under UnitTests\Firebird are binaries on purpose - the
+# integration tests drive the real gstat / gfix / gbak / isql of every supported
+# version. They must survive the *.exe and *.dll rules above, otherwise a plain
+# "git add" drops them and the tests only fail on someone else's machine.
+!UnitTests/Firebird/**/*.exe
+!UnitTests/Firebird/**/*.dll
+
+# ...but the log those tools write at runtime is not wanted.
+firebird.log
+
 # TestInsight settings should not be in Repository
 TestInsightSettings.ini
 
