@@ -27,6 +27,27 @@ type
     procedure ODSVersionStr_Formats_AsMajorDotMinor;
     [Test]
     procedure ToStrings_ContainsVersionAndPageSize;
+    [Test]
+    procedure ToStrings_ReportsUnavailableFieldsAsNotAvailable;
+    [Test]
+    procedure AttributesStr_ListsEachAttribute;
+  end;
+
+  // Guards the per-ODS header page records against silent layout drift, the same way
+  // Firebird guards its own structs with static_assert(offsetof(...)) in ods.h.
+  [TestFixture]
+  TODSHeaderPageLayoutTests = class
+  public
+    [Test]
+    procedure Pag_MatchesFirebirdLayout;
+    [Test]
+    procedure HeaderPage10_11_MatchesFirebirdLayout;
+    [Test]
+    procedure HeaderPage12_MatchesFirebirdLayout;
+    [Test]
+    procedure HeaderPage13_MatchesFirebirdLayout;
+    [Test]
+    procedure HeaderPage14_MatchesFirebirdLayout;
   end;
 
   // Tests for the byte-level accessors on the fixed static-header record.
@@ -72,10 +93,19 @@ type
     [Test]
     procedure Reads_Ods10_1_Firebird15;
 
-    // The bug this project was reviewed for: the minor version must come from
-    // hdr_ods_minor (offset 64), not the hdr_cc byte (offset 62).
+    // ODS 10/11 keep hdr_ods_minor at offset 62; offset 64 is hdr_ods_minor_original
+    // (the ODS the database was created with) and must be ignored.
     [Test]
-    procedure Reads_Ods11_MinorFromOffset64_IgnoringHdrCcAtOffset62;
+    procedure Reads_Ods11_MinorFromOffset62_IgnoringOriginalAtOffset64;
+    [Test]
+    procedure Reads_Ods10_MinorFromOffset62_IgnoringOriginalAtOffset64;
+
+    // ODS 12/13 split hdr_implementation into hdr_cpu/os/cc/compat at 60..63, so
+    // hdr_ods_minor moved to offset 64 and the hdr_cc byte at 62 must be ignored.
+    [Test]
+    procedure Reads_Ods12_MinorFromOffset64_IgnoringHdrCcAtOffset62;
+    [Test]
+    procedure Reads_Ods13_MinorFromOffset64_IgnoringHdrCcAtOffset62;
 
     [Test]
     procedure Reads_Ods12_0;
@@ -145,6 +175,14 @@ type
     [TestCase('Firebird 6.0.x', 'fb60x\Employee_Fb6.x.x.fdb,14.0,14,0,8192')]
     procedure Reads_ExpectedValues_FromRealDatabase(const ARelativePath, AExpectedOdsVersion: string;
       const AExpectedMajor, AExpectedMinor, AExpectedPageSize: Integer);
+
+    // Expected values below were taken from real "gstat -h" output (Firebird 5.0's
+    // gstat only reads ODS 13, which is why just these two are covered here).
+    [Test]
+    [TestCase('Firebird 4.0.x', 'fb40x\Employee_Fb4.0.5.fdb,170,157,158,158,158,7,0,3')]
+    [TestCase('Firebird 5.0.x', 'fb50x\Employee_Fb5.0.2.fdb,170,157,158,158,158,7,0,3')]
+    procedure Reads_SameValuesAsGstat(const ARelativePath: string; const AGeneration, AOldestTransaction,
+      AOldestActive, AOldestSnapshot, ANextTransaction, ANextAttachmentID, APageBuffers, ADialect: Integer);
   end;
 
 implementation
@@ -240,16 +278,100 @@ begin
   FHeaderInfo.MajorVersion := 12;
   FHeaderInfo.MinorVersion := 0;
   FHeaderInfo.PageSize := 8192;
+  FHeaderInfo.OldestTransaction := 160;
 
   LStrings := TStringList.Create;
   try
     FHeaderInfo.ToStrings(LStrings);
 
-    Assert.AreEqual('ODS version = 12.0', LStrings[0]);
-    Assert.AreEqual('Page size = 8192', LStrings[1]);
+    Assert.AreNotEqual(-1, LStrings.IndexOf('ODS version = 12.0'), 'ODS version');
+    Assert.AreNotEqual(-1, LStrings.IndexOf('Page size = 8192'), 'Page size');
+    Assert.AreNotEqual(-1, LStrings.IndexOf('Oldest transaction = 160'), 'Oldest transaction');
   finally
     LStrings.Free;
   end;
+end;
+
+procedure TFireBirdODSHeaderInfoTests.ToStrings_ReportsUnavailableFieldsAsNotAvailable;
+var
+  LStrings: TStringList;
+begin
+  // Firebird 6 / ODS 14 has no hdr_sequence, so it must not be reported as 0.
+  FHeaderInfo.MajorVersion := 14;
+  FHeaderInfo.MinorVersion := 0;
+  FHeaderInfo.SequenceNumber := VALUE_NOT_AVAILABLE;
+
+  LStrings := TStringList.Create;
+  try
+    FHeaderInfo.ToStrings(LStrings);
+
+    Assert.AreNotEqual(-1, LStrings.IndexOf('Sequence number = n/a'), 'Sequence number');
+  finally
+    LStrings.Free;
+  end;
+end;
+
+procedure TFireBirdODSHeaderInfoTests.AttributesStr_ListsEachAttribute;
+begin
+  FHeaderInfo.Attributes := [];
+  Assert.AreEqual('', FHeaderInfo.AttributesStr, 'no attributes');
+
+  FHeaderInfo.Attributes := [fdaForceWrite];
+  Assert.AreEqual('force write', FHeaderInfo.AttributesStr, 'single');
+
+  FHeaderInfo.Attributes := [fdaForceWrite, fdaReadOnly];
+  Assert.AreEqual('force write, read only', FHeaderInfo.AttributesStr, 'several');
+end;
+
+{ TODSHeaderPageLayoutTests }
+
+// These mirror the static_assert(offsetof(...)) lines Firebird keeps in ods.h.
+// If a record ever drifts, the byte offsets silently rot - so pin the sizes here.
+
+procedure TODSHeaderPageLayoutTests.Pag_MatchesFirebirdLayout;
+begin
+  Assert.AreEqual(16, SizeOf(TODSPag));
+end;
+
+procedure TODSHeaderPageLayoutTests.HeaderPage10_11_MatchesFirebirdLayout;
+var
+  LHeaderPage: TODSHeaderPage10_11;
+begin
+  Assert.AreEqual(80, SizeOf(TODSHeaderPage10_11), 'SizeOf');
+  Assert.AreEqual(62, NativeInt(@LHeaderPage.ODSMinor) - NativeInt(@LHeaderPage), 'hdr_ods_minor offset');
+  Assert.AreEqual(64, NativeInt(@LHeaderPage.ODSMinorOriginal) - NativeInt(@LHeaderPage), 'hdr_ods_minor_original offset');
+  Assert.AreEqual(66, NativeInt(@LHeaderPage.HeaderEnd) - NativeInt(@LHeaderPage), 'hdr_end offset');
+end;
+
+procedure TODSHeaderPageLayoutTests.HeaderPage12_MatchesFirebirdLayout;
+var
+  LHeaderPage: TODSHeaderPage12;
+begin
+  Assert.AreEqual(132, SizeOf(TODSHeaderPage12), 'SizeOf');
+  Assert.AreEqual(64, NativeInt(@LHeaderPage.ODSMinor) - NativeInt(@LHeaderPage), 'hdr_ods_minor offset');
+  Assert.AreEqual(120, NativeInt(@LHeaderPage.AttHigh) - NativeInt(@LHeaderPage), 'hdr_att_high offset');
+  Assert.AreEqual(124, NativeInt(@LHeaderPage.TraHigh) - NativeInt(@LHeaderPage), 'hdr_tra_high offset');
+end;
+
+procedure TODSHeaderPageLayoutTests.HeaderPage13_MatchesFirebirdLayout;
+var
+  LHeaderPage: TODSHeaderPage13;
+begin
+  // Firebird's own static_asserts: att_high@116, tra_high@120, hdr_data@128.
+  Assert.AreEqual(128, SizeOf(TODSHeaderPage13), 'SizeOf');
+  Assert.AreEqual(64, NativeInt(@LHeaderPage.ODSMinor) - NativeInt(@LHeaderPage), 'hdr_ods_minor offset');
+  Assert.AreEqual(116, NativeInt(@LHeaderPage.AttHigh) - NativeInt(@LHeaderPage), 'hdr_att_high offset');
+  Assert.AreEqual(120, NativeInt(@LHeaderPage.TraHigh) - NativeInt(@LHeaderPage), 'hdr_tra_high offset');
+end;
+
+procedure TODSHeaderPageLayoutTests.HeaderPage14_MatchesFirebirdLayout;
+var
+  LHeaderPage: TODSHeaderPage14;
+begin
+  Assert.AreEqual(148, SizeOf(TODSHeaderPage14), 'SizeOf');
+  Assert.AreEqual(20, NativeInt(@LHeaderPage.ODSMinor) - NativeInt(@LHeaderPage), 'hdr_ods_minor offset');
+  Assert.AreEqual(40, NativeInt(@LHeaderPage.NextTransaction) - NativeInt(@LHeaderPage), 'hdr_next_transaction offset');
+  Assert.AreEqual(84, NativeInt(@LHeaderPage.GUID) - NativeInt(@LHeaderPage), 'hdr_guid offset');
 end;
 
 { TODSStaticHeaderTests }
@@ -362,7 +484,7 @@ procedure TFirebirdODSHeaderReaderSyntheticTests.Reads_Ods10_1_Firebird15;
 var
   LFileName: string;
 begin
-  LFileName := WriteHeaderFile(PAGE_TYPE_HEADER, 4096, 10, 0, 0, 1);
+  LFileName := WriteHeaderFile(PAGE_TYPE_HEADER, 4096, 10, 0, 1, 0);
 
   Assert.IsTrue(FReader.ReadHeader(LFileName), 'ReadHeader');
   Assert.AreEqual('10.1', FReader.ODSHeaderInfo.ODSVersionStr);
@@ -370,15 +492,49 @@ begin
   Assert.AreEqual(1, FReader.ODSHeaderInfo.MinorVersion, 'MinorVersion');
 end;
 
-procedure TFirebirdODSHeaderReaderSyntheticTests.Reads_Ods11_MinorFromOffset64_IgnoringHdrCcAtOffset62;
+procedure TFirebirdODSHeaderReaderSyntheticTests.Reads_Ods11_MinorFromOffset62_IgnoringOriginalAtOffset64;
 var
   LFileName: string;
 begin
-  // hdr_cc (offset 62) = 9, real hdr_ods_minor (offset 64) = 1. Must report 11.1.
-  LFileName := WriteHeaderFile(PAGE_TYPE_HEADER, 4096, 11 or FIREBIRD_FLAG, 0, 9, 1);
+  // Real hdr_ods_minor (offset 62) = 1, hdr_ods_minor_original (offset 64) = 9.
+  // Must report 11.1 - the database's current ODS, not the one it was created with.
+  LFileName := WriteHeaderFile(PAGE_TYPE_HEADER, 4096, 11 or FIREBIRD_FLAG, 0, 1, 9);
 
   Assert.IsTrue(FReader.ReadHeader(LFileName), 'ReadHeader');
   Assert.AreEqual('11.1', FReader.ODSHeaderInfo.ODSVersionStr);
+end;
+
+procedure TFirebirdODSHeaderReaderSyntheticTests.Reads_Ods10_MinorFromOffset62_IgnoringOriginalAtOffset64;
+var
+  LFileName: string;
+begin
+  // Firebird 1.5 / ODS 10 uses the same layout as ODS 11.
+  LFileName := WriteHeaderFile(PAGE_TYPE_HEADER, 4096, 10, 0, 1, 9);
+
+  Assert.IsTrue(FReader.ReadHeader(LFileName), 'ReadHeader');
+  Assert.AreEqual('10.1', FReader.ODSHeaderInfo.ODSVersionStr);
+end;
+
+procedure TFirebirdODSHeaderReaderSyntheticTests.Reads_Ods12_MinorFromOffset64_IgnoringHdrCcAtOffset62;
+var
+  LFileName: string;
+begin
+  // hdr_cc (offset 62) = 9, real hdr_ods_minor (offset 64) = 0. Must report 12.0.
+  LFileName := WriteHeaderFile(PAGE_TYPE_HEADER, 8192, 12 or FIREBIRD_FLAG, 0, 9, 0);
+
+  Assert.IsTrue(FReader.ReadHeader(LFileName), 'ReadHeader');
+  Assert.AreEqual('12.0', FReader.ODSHeaderInfo.ODSVersionStr);
+end;
+
+procedure TFirebirdODSHeaderReaderSyntheticTests.Reads_Ods13_MinorFromOffset64_IgnoringHdrCcAtOffset62;
+var
+  LFileName: string;
+begin
+  // hdr_cc (offset 62) = 9, real hdr_ods_minor (offset 64) = 1. Must report 13.1.
+  LFileName := WriteHeaderFile(PAGE_TYPE_HEADER, 8192, 13 or FIREBIRD_FLAG, 0, 9, 1);
+
+  Assert.IsTrue(FReader.ReadHeader(LFileName), 'ReadHeader');
+  Assert.AreEqual('13.1', FReader.ODSHeaderInfo.ODSVersionStr);
 end;
 
 procedure TFirebirdODSHeaderReaderSyntheticTests.Reads_Ods12_0;
@@ -551,7 +707,7 @@ var
   LValidOds10: string;
 begin
   LValidOds12 := WriteHeaderFile(PAGE_TYPE_HEADER, 8192, 12 or FIREBIRD_FLAG, 0, 0, 0);
-  LValidOds10 := WriteHeaderFile(PAGE_TYPE_HEADER, 4096, 10, 0, 0, 1);
+  LValidOds10 := WriteHeaderFile(PAGE_TYPE_HEADER, 4096, 10, 0, 1, 0);
 
   // 1) A valid ODS 12 database.
   Assert.IsTrue(FReader.ReadHeader(LValidOds12), 'first ReadHeader');
@@ -601,6 +757,39 @@ begin
   Assert.AreEqual(AExpectedMajor, FReader.ODSHeaderInfo.MajorVersion, 'MajorVersion');
   Assert.AreEqual(AExpectedMinor, FReader.ODSHeaderInfo.MinorVersion, 'MinorVersion');
   Assert.AreEqual(AExpectedPageSize, FReader.ODSHeaderInfo.PageSize, 'PageSize');
+end;
+
+procedure TFirebirdODSHeaderReaderRealFileTests.Reads_SameValuesAsGstat(const ARelativePath: string;
+  const AGeneration, AOldestTransaction, AOldestActive, AOldestSnapshot, ANextTransaction, ANextAttachmentID,
+  APageBuffers, ADialect: Integer);
+var
+  LFileName: string;
+begin
+  if FTestDataDir.IsEmpty then
+    Assert.Pass('TestData folder not found - real database tests skipped.');
+
+  LFileName := TPath.Combine(FTestDataDir, ARelativePath);
+
+  if not TFile.Exists(LFileName) then
+    Assert.Pass('Sample database not present (Git LFS not pulled?): ' + ARelativePath);
+
+  Assert.IsTrue(FReader.ReadHeader(LFileName), 'ReadHeader ' + ARelativePath);
+
+  Assert.AreEqual(0, Integer(FReader.ODSHeaderInfo.PageFlags), 'Flags');
+  Assert.AreEqual(AGeneration, Integer(FReader.ODSHeaderInfo.Generation), 'Generation');
+  Assert.AreEqual(0, Integer(FReader.ODSHeaderInfo.SystemChangeNumber), 'System Change Number');
+  Assert.AreEqual(Int64(AOldestTransaction), FReader.ODSHeaderInfo.OldestTransaction, 'Oldest transaction');
+  Assert.AreEqual(Int64(AOldestActive), FReader.ODSHeaderInfo.OldestActive, 'Oldest active');
+  Assert.AreEqual(Int64(AOldestSnapshot), FReader.ODSHeaderInfo.OldestSnapshot, 'Oldest snapshot');
+  Assert.AreEqual(Int64(ANextTransaction), FReader.ODSHeaderInfo.NextTransaction, 'Next transaction');
+  Assert.AreEqual(Int64(0), FReader.ODSHeaderInfo.SequenceNumber, 'Sequence number');
+  Assert.AreEqual(Int64(ANextAttachmentID), FReader.ODSHeaderInfo.NextAttachmentID, 'Next attachment ID');
+  Assert.AreEqual(0, FReader.ODSHeaderInfo.ShadowCount, 'Shadow count');
+  Assert.AreEqual(Int64(APageBuffers), FReader.ODSHeaderInfo.PageBuffers, 'Page buffers');
+  Assert.AreEqual(Int64(0), FReader.ODSHeaderInfo.NextHeaderPage, 'Next header page');
+  Assert.AreEqual(ADialect, FReader.ODSHeaderInfo.Dialect, 'Database dialect');
+  // gstat printed an empty Attributes line for both of these databases.
+  Assert.AreEqual('', FReader.ODSHeaderInfo.AttributesStr, 'Attributes');
 end;
 
 end.
