@@ -199,7 +199,7 @@ type
     TraHigh: array [0..3] of Word;        // Offset 120
   end;                                    // 128 bytes = hdr_data offset
 
-  // Firebird 6.0.x (ODS 14). The header page was reorganised: the minor version sits
+  // Firebird 6.0.x (ODS 14). The header page was reorganized: the minor version sits
   // next to the major one, the transaction counters became native 64 bit, the GUID
   // became a fixed field, and hdr_sequence / hdr_next_page were dropped entirely.
   TODSHeaderPage14 = packed record
