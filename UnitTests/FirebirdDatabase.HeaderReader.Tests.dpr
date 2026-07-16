@@ -15,6 +15,8 @@ uses
   {$ENDIF }
   DUnitX.TestFramework,
   FHRTests.HeaderReader in 'FHRTests.HeaderReader.pas',
+  FHRTests.FirebirdTools in 'FHRTests.FirebirdTools.pas',
+  FHRTests.GStatDifferential in 'FHRTests.GStatDifferential.pas',
   FHRUnit.HeaderReader in '..\Source\FHRUnit.HeaderReader.pas',
   FHRUnit.HeaderReader.Types in '..\Source\FHRUnit.HeaderReader.Types.pas';
 
